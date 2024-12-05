@@ -35,6 +35,18 @@ jobs:
       - name: Verify Build
         run: mvn package
 
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: 'target'
+          format: 'table'
+          exit-code: '1'
+          ignore-unfixed: true
+          severity: 'CRITICAL,HIGH'
+          timeout: '10m'
+          trivyignores: '.trivyignore'
+
       - name: Check if Docker push is needed
         id: check_push
         run: |
