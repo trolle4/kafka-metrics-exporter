@@ -9,12 +9,12 @@ import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.ActiveProfiles;
 
-@SpringBootTest
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("test")
 @Slf4j
 class KafkaExporterApplicationTests {
 
-	//@Test
+	@Test
 	void contextLoads() {
 		log.info("Test case executed successfully");
 	}

@@ -41,7 +41,7 @@ class KafkaMetricsCollectorTest {
         collectorConf.setTopicBlackListRegex("");
         collectorConf.setMinTimeBetweenUpdatesMillis(60000);
 
-        collector = new KafkaMetricsCollector(adminClient, meterRegistry, collectorConf);
+        collector = new KafkaMetricsCollector(adminClient, collectorConf);
     }
 
     @Test

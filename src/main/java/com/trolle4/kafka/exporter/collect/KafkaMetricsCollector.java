@@ -2,7 +2,10 @@ package com.trolle4.kafka.exporter.collect;
 
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Tags;
+import io.micrometer.prometheusmetrics.PrometheusConfig;
+import io.micrometer.prometheusmetrics.PrometheusMeterRegistry;
 import lombok.Data;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
@@ -10,6 +13,7 @@ import org.apache.kafka.clients.admin.*;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.TopicPartitionInfo;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -24,8 +28,8 @@ import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 
 @Component
-@Slf4j
 @RequiredArgsConstructor
+@Slf4j
 public class KafkaMetricsCollector {
 
     // Topic metrics
@@ -43,8 +47,11 @@ public class KafkaMetricsCollector {
     public static final String KAFKA_CONSUMERGROUP_LAG = "kafka_consumergroup_lag";
 
     private final AdminClient adminClient;
-    private final MeterRegistry meterRegistry;
+    @Getter
+    private final PrometheusMeterRegistry meterRegistry = new PrometheusMeterRegistry(PrometheusConfig.DEFAULT);
     private final CollectorConf collectorConf;
+
+
 
     @Configuration
     @ConfigurationProperties(prefix = "collector.conf")

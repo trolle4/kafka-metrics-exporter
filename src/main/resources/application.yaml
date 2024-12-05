@@ -14,9 +14,12 @@ management:
   endpoints:
     web:
       exposure:
-        include: prometheus,health,info,metric
+        include: prometheus,health,info,kafka-metrics
     health:
       show-details: always
+  metrics:
+    tags:
+      application: ${spring.application.name}
 
   endpoint:
     prometheus:
