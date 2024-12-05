@@ -1,24 +1,24 @@
-package com.trolle4.kafka.exporter.rest;
+package com.trolle4.kafka.exporter.actuator;
 
-import com.trolle4.kafka.exporter.collect.KafkaMetricsCollector;
-import io.micrometer.prometheusmetrics.PrometheusMeterRegistry;
+import com.trolle4.kafka.exporter.collect.PrometheusService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.actuate.endpoint.annotation.ReadOperation;
 import org.springframework.boot.actuate.endpoint.web.annotation.WebEndpoint;
 import org.springframework.http.MediaType;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@WebEndpoint(id = "kafka-metrics")
+@WebEndpoint(id = "kafkametrics")
 @RequiredArgsConstructor
-public class MetricsRestController {
+public class KafkaMetricsActuator {
 
-    private final KafkaMetricsCollector kafkaMetricsCollector;
+    private final PrometheusService prometheusService;
 
     @ReadOperation(produces = MediaType.TEXT_PLAIN_VALUE)
+    @GetMapping(path = "/metrics", produces = MediaType.TEXT_PLAIN_VALUE)
     public String customMetrics() {
-        return kafkaMetricsCollector.getMeterRegistry().scrape();
+        return prometheusService.getMeterRegistry().scrape();
     }
 
 }

@@ -1,30 +1,22 @@
 package com.trolle4.kafka.exporter.collect;
 
-import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Tags;
-import io.micrometer.prometheusmetrics.PrometheusConfig;
 import io.micrometer.prometheusmetrics.PrometheusMeterRegistry;
 import lombok.Data;
-import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.kafka.clients.admin.*;
-import org.apache.kafka.clients.consumer.OffsetAndMetadata;
+import org.apache.kafka.clients.admin.ListOffsetsResult;
+import org.apache.kafka.clients.admin.OffsetSpec;
+import org.apache.kafka.clients.admin.TopicDescription;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.TopicPartitionInfo;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-import java.util.Collection;
-import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 
 @Component
@@ -46,11 +38,15 @@ public class KafkaMetricsCollector {
     public static final String KAFKA_CONSUMERGROUP_CURRENT_OFFSET = "kafka_consumergroup_current_offset";
     public static final String KAFKA_CONSUMERGROUP_LAG = "kafka_consumergroup_lag";
 
-    private final AdminClient adminClient;
-    @Getter
-    private final PrometheusMeterRegistry meterRegistry = new PrometheusMeterRegistry(PrometheusConfig.DEFAULT);
-    private final CollectorConf collectorConf;
+    // Tags
+    public static final String TAG_TOPIC = "topic";
+    public static final String TAG_PARTITION = "partition";
+    public static final String TAG_CONSUMER_GROUP = "consumergroup";
 
+
+    private final CollectorConf collectorConf;
+    private final AdminClientService adminClientService;
+    private final PrometheusService prometheusService;
 
 
     @Configuration
@@ -64,24 +60,25 @@ public class KafkaMetricsCollector {
 
     @SneakyThrows
     public Map<String, TopicDescription> getTopics() {
-        var topics = adminClient.listTopics().names().get(10, TimeUnit.SECONDS)
+        var topics = adminClientService.listTopics()
                 .stream()
                 .filter(topic -> topic.matches(collectorConf.getTopicWhiteListRegex()))
                 .filter(topic -> !topic.matches(collectorConf.getTopicBlackListRegex()))
-                .toList();
+                .collect(Collectors.toSet());
 
-        return adminClient.describeTopics(topics).allTopicNames().get(10, TimeUnit.SECONDS);
+        return adminClientService.describeTopics(topics);
     }
+
 
     @Scheduled(fixedRateString = "${collector.conf.minTimeBetweenUpdatesMillis}")
     public synchronized void updateMetrics() {
-            var latestOffsets = collectTopicMetrics();
-            collectConsumerGroupMetrics(latestOffsets);
+        var topicDescriptions = getTopics();
+        var latestOffsets = collectTopicMetrics(topicDescriptions);
+        collectConsumerGroupMetrics(latestOffsets);
     }
 
     @SneakyThrows
-    private Map<TopicPartition, ListOffsetsResult.ListOffsetsResultInfo> collectTopicMetrics()  {
-        var topicDescriptions = getTopics();
+    Map<TopicPartition, ListOffsetsResult.ListOffsetsResultInfo> collectTopicMetrics(Map<String, TopicDescription> topicDescriptions) {
 
         var topicPartitions = topicDescriptions.entrySet().stream()
                 .flatMap(entry -> {
@@ -92,23 +89,23 @@ public class KafkaMetricsCollector {
                             .map(partition -> new TopicPartition(topic, partition.partition()));
                 }).toList();
 
-        var earliestOffsets = getOffsets(topicPartitions, OffsetSpec.earliest());
+        var earliestOffsets = adminClientService.getOffsets(topicPartitions, OffsetSpec.earliest());
 
-        var latestOffsets = getOffsets(topicPartitions, OffsetSpec.latest());
+        var latestOffsets = adminClientService.getOffsets(topicPartitions, OffsetSpec.latest());
 
         for (Map.Entry<String, TopicDescription> entry : topicDescriptions.entrySet()) {
             String topic = entry.getKey();
             TopicDescription desc = entry.getValue();
 
-            meterRegistry.gauge(KAFKA_TOPIC_PARTITIONS,
-                    Tags.of("topic", topic),
+            meterRegistry().gauge(KAFKA_TOPIC_PARTITIONS,
+                    Tags.of(TAG_TOPIC, topic),
                     desc.partitions().size());
 
             for (TopicPartitionInfo partition : desc.partitions()) {
                 int partitionNumber = partition.partition();
                 Tags tags = Tags.of(
-                        "topic", topic,
-                        "partition", String.valueOf(partitionNumber)
+                        TAG_TOPIC, topic,
+                        TAG_PARTITION, String.valueOf(partitionNumber)
                 );
 
                 TopicPartition tp = new TopicPartition(topic, partitionNumber);
@@ -123,69 +120,52 @@ public class KafkaMetricsCollector {
     }
 
 
-
-    private void updatePartitionMetrics(TopicPartitionInfo partition, Tags tags, ListOffsetsResult.ListOffsetsResultInfo earliest, ListOffsetsResult.ListOffsetsResultInfo latest) {
-        meterRegistry.gauge(KAFKA_TOPIC_PARTITION_CURRENT_OFFSET, tags,
+    void updatePartitionMetrics(TopicPartitionInfo partition, Tags tags, ListOffsetsResult.ListOffsetsResultInfo earliest, ListOffsetsResult.ListOffsetsResultInfo latest) {
+        meterRegistry().gauge(KAFKA_TOPIC_PARTITION_CURRENT_OFFSET, tags,
                 latest != null ? latest.offset() : -1);
-        meterRegistry.gauge(KAFKA_TOPIC_PARTITION_OLDEST_OFFSET, tags,
+        meterRegistry().gauge(KAFKA_TOPIC_PARTITION_OLDEST_OFFSET, tags,
                 earliest != null ? earliest.offset() : -1);
 
-        meterRegistry.gauge(KAFKA_TOPIC_PARTITION_IN_SYNC_REPLICA, tags,
+        meterRegistry().gauge(KAFKA_TOPIC_PARTITION_IN_SYNC_REPLICA, tags,
                 partition.isr().size());
-        meterRegistry.gauge(KAFKA_TOPIC_PARTITION_LEADER,
+        meterRegistry().gauge(KAFKA_TOPIC_PARTITION_LEADER,
                 tags, partition.leader() != null ? partition.leader().id() : -1);
-        meterRegistry.gauge(KAFKA_TOPIC_PARTITION_LEADER_IS_PREFERRED, tags,
+        meterRegistry().gauge(KAFKA_TOPIC_PARTITION_LEADER_IS_PREFERRED, tags,
                 partition.leader() != null && partition.leader().id() == partition.replicas().getFirst().id() ? 1 : 0);
-        meterRegistry.gauge(KAFKA_TOPIC_PARTITION_REPLICAS, tags,
+        meterRegistry().gauge(KAFKA_TOPIC_PARTITION_REPLICAS, tags,
                 partition.replicas().size());
-        meterRegistry.gauge(KAFKA_TOPIC_PARTITION_UNDER_REPLICATED_PARTITION, tags,
+        meterRegistry().gauge(KAFKA_TOPIC_PARTITION_UNDER_REPLICATED_PARTITION, tags,
                 partition.isr().size() < partition.replicas().size() ? 1 : 0);
     }
 
 
     @SneakyThrows
-    private void collectConsumerGroupMetrics(Map<TopicPartition, ListOffsetsResult.ListOffsetsResultInfo> latestOffsets) {
+    void collectConsumerGroupMetrics(Map<TopicPartition, ListOffsetsResult.ListOffsetsResultInfo> latestOffsets) {
 
-            var consumerGroups = getConsumerGroups();
+        var consumerGroups = adminClientService.getConsumerGroups();
 
-            var consumerGroupOffsets = getConsumerGroupOffsets(consumerGroups);
+        var consumerGroupOffsets = adminClientService.getConsumerGroupOffsets(consumerGroups);
 
 
-            consumerGroupOffsets.forEach((groupId, offsets) -> {
-                offsets.forEach((tp, offset) -> {
-                    Tags tags = Tags.of(
-                            "consumergroup", groupId,
-                            "topic", tp.topic(),
-                            "partition", String.valueOf(tp.partition())
-                    );
-                    long currentOffset = offset.offset();
-                    meterRegistry.gauge(KAFKA_CONSUMERGROUP_CURRENT_OFFSET, tags, currentOffset);
+        consumerGroupOffsets.forEach((groupId, offsets) -> {
+            offsets.forEach((tp, offset) -> {
+                Tags tags = Tags.of(
+                        TAG_CONSUMER_GROUP, groupId,
+                        TAG_TOPIC, tp.topic(),
+                        TAG_PARTITION, String.valueOf(tp.partition())
+                );
+                long currentOffset = offset.offset();
+                meterRegistry().gauge(KAFKA_CONSUMERGROUP_CURRENT_OFFSET, tags, currentOffset);
 
-                    var latestOffset = latestOffsets.get(tp).offset();
-                    long lag = Math.max(0, latestOffset - currentOffset);
-                    meterRegistry.gauge(KAFKA_CONSUMERGROUP_LAG, tags, lag);
-                });
+                var latestOffset = latestOffsets.get(tp).offset();
+                long lag = Math.max(0, latestOffset - currentOffset);
+                meterRegistry().gauge(KAFKA_CONSUMERGROUP_LAG, tags, lag);
             });
+        });
     }
 
-    Map<TopicPartition, ListOffsetsResult.ListOffsetsResultInfo> getOffsets(List<TopicPartition> topicPartitions, OffsetSpec offsetSpec) throws InterruptedException, ExecutionException, TimeoutException {
-        return adminClient.listOffsets(
-                        topicPartitions.stream().collect(Collectors.toMap(tp -> tp, tp -> offsetSpec)))
-                .all().get(10, TimeUnit.SECONDS);
+    private PrometheusMeterRegistry meterRegistry() {
+        return prometheusService.getMeterRegistry();
     }
-
-    Collection<ConsumerGroupListing> getConsumerGroups() throws InterruptedException, ExecutionException, TimeoutException {
-        return adminClient.listConsumerGroups().all().get(10, TimeUnit.SECONDS);
-    }
-
-    Map<String, Map<TopicPartition, OffsetAndMetadata>> getConsumerGroupOffsets(Collection<ConsumerGroupListing> consumerGroups) throws InterruptedException, ExecutionException, TimeoutException {
-        return adminClient.listConsumerGroupOffsets(
-                consumerGroups.stream().collect(Collectors.toMap(
-                        ConsumerGroupListing::groupId,
-                        cg -> new ListConsumerGroupOffsetsSpec()
-                ))
-        ).all().get(10, TimeUnit.SECONDS);
-    }
-
 
 }

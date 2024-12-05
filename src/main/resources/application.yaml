@@ -14,7 +14,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: prometheus,health,info,kafka-metrics
+        include: prometheus,health,info,kafkametrics
     health:
       show-details: always
   metrics:
@@ -27,3 +27,4 @@ management:
 
 server:
   port: 8080
+
