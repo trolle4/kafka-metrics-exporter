@@ -32,7 +32,17 @@ jobs:
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
 
+      - name: Check if Docker push is needed
+        id: check_push
+        run: |
+          if [[ "${{ github.ref }}" == "refs/heads/master" || $(git log -1 --pretty=%B) == *"PUSH"* ]]; then
+            echo "should_push=true" >> $GITHUB_OUTPUT
+          else
+            echo "should_push=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Login to Docker Hub
+        if: steps.check_push.outputs.should_push == 'true'
         uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKER_HUB_USERNAME }}
@@ -58,6 +68,7 @@ jobs:
           fi
 
       - name: Build and Push Docker Image
+        if: steps.check_push.outputs.should_push == 'true'
         env:
           DOCKER_HUB_USERNAME: ${{ secrets.DOCKER_HUB_USERNAME }}
           DOCKER_HUB_TOKEN: ${{ secrets.DOCKER_HUB_TOKEN }}
