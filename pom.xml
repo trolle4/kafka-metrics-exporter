@@ -91,15 +91,9 @@
                 <artifactId>spring-boot-maven-plugin</artifactId>
                 <configuration>
                     <image>
-                        <name>${project.artifactId}</name>
+                        <name>docker.io/${env.DOCKER_HUB_USERNAME}/${project.artifactId}</name>
                         <builder>paketobuildpacks/builder:base</builder>
                     </image>
-                    <docker>
-                        <publishRegistry>
-                            <username>${env.DOCKER_HUB_USERNAME}</username>
-                            <password>${env.DOCKER_HUB_TOKEN}</password>
-                        </publishRegistry>
-                    </docker>
                 </configuration>
             </plugin>
             <!-- Maven Release Plugin -->

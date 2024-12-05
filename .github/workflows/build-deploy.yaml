@@ -58,13 +58,14 @@ jobs:
           fi
 
       - name: Build and Push Docker Image
+        env:
+          DOCKER_HUB_USERNAME: ${{ secrets.DOCKER_HUB_USERNAME }}
         run: |
           mvn spring-boot:build-image \
-            -Dspring-boot.build-image.imageName=${{ env.IMAGE_NAME }}:${{ steps.get_version.outputs.VERSION }} \
             -DskipTests
-          docker tag ${{ env.IMAGE_NAME }}:${{ steps.get_version.outputs.VERSION }} ${{ env.IMAGE_NAME }}:latest
-          docker push ${{ env.IMAGE_NAME }}:${{ steps.get_version.outputs.VERSION }}
-          docker push ${{ env.IMAGE_NAME }}:latest
+          docker tag docker.io/${DOCKER_HUB_USERNAME}/${project.artifactId}:${{ steps.get_version.outputs.VERSION }} docker.io/${DOCKER_HUB_USERNAME}/${project.artifactId}:latest
+          docker push docker.io/${DOCKER_HUB_USERNAME}/${project.artifactId}:${{ steps.get_version.outputs.VERSION }}
+          docker push docker.io/${DOCKER_HUB_USERNAME}/${project.artifactId}:latest
 
       - name: Complete Release
         if: github.ref == 'refs/heads/master'
