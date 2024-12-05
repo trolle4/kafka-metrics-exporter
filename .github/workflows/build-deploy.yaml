@@ -63,10 +63,13 @@ jobs:
           DOCKER_HUB_TOKEN: ${{ secrets.DOCKER_HUB_TOKEN }}
           VERSION: ${{ steps.get_version.outputs.VERSION }}
         run: |
-          mvn -Dspring-boot.build-image.imageName=docker.io/${DOCKER_HUB_USERNAME}/${project.artifactId}:${VERSION} spring-boot:build-image -DskipTests
-          docker push docker.io/${DOCKER_HUB_USERNAME}/${project.artifactId}:${VERSION}
-          docker tag docker.io/${DOCKER_HUB_USERNAME}/${project.artifactId}:${VERSION} docker.io/${DOCKER_HUB_USERNAME}/${project.artifactId}:latest
-          docker push docker.io/${DOCKER_HUB_USERNAME}/${project.artifactId}:latest
+          IMAGE_TAG="docker.io/${DOCKER_HUB_USERNAME}/kafka-metrics-exporter:${VERSION}"
+          
+          mvn -Dspring-boot.build-image.imageName="${IMAGE_TAG}" spring-boot:build-image -DskipTests
+          
+          docker push "${IMAGE_TAG}"
+          docker tag "${IMAGE_TAG}" "docker.io/${DOCKER_HUB_USERNAME}/kafka-metrics-exporter:latest"
+          docker push "docker.io/${DOCKER_HUB_USERNAME}/kafka-metrics-exporter:latest"
 
       - name: Complete Release
         if: github.ref == 'refs/heads/master'
