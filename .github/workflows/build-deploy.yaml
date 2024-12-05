@@ -60,10 +60,15 @@ jobs:
       - name: Build and Push Docker Image
         env:
           DOCKER_HUB_USERNAME: ${{ secrets.DOCKER_HUB_USERNAME }}
+          DOCKER_HUB_TOKEN: ${{ secrets.DOCKER_HUB_TOKEN }}
         run: |
           mvn spring-boot:build-image \
+            -Dspring-boot.build-image.version=${{ steps.get_version.outputs.VERSION }} \
             -DskipTests
-          docker tag docker.io/${DOCKER_HUB_USERNAME}/${project.artifactId}:${{ steps.get_version.outputs.VERSION }} docker.io/${DOCKER_HUB_USERNAME}/${project.artifactId}:latest
+          
+          # Tag and push after successful build
+          docker tag docker.io/${DOCKER_HUB_USERNAME}/${project.artifactId}:${{ steps.get_version.outputs.VERSION }} \
+                    docker.io/${DOCKER_HUB_USERNAME}/${project.artifactId}:latest
           docker push docker.io/${DOCKER_HUB_USERNAME}/${project.artifactId}:${{ steps.get_version.outputs.VERSION }}
           docker push docker.io/${DOCKER_HUB_USERNAME}/${project.artifactId}:latest
 
