@@ -61,15 +61,11 @@ jobs:
         env:
           DOCKER_HUB_USERNAME: ${{ secrets.DOCKER_HUB_USERNAME }}
           DOCKER_HUB_TOKEN: ${{ secrets.DOCKER_HUB_TOKEN }}
+          VERSION: ${{ steps.get_version.outputs.VERSION }}
         run: |
-          mvn spring-boot:build-image \
-            -Dspring-boot.build-image.version=${{ steps.get_version.outputs.VERSION }} \
-            -DskipTests
-          
-          # Tag and push after successful build
-          docker tag docker.io/${DOCKER_HUB_USERNAME}/${project.artifactId}:${{ steps.get_version.outputs.VERSION }} \
-                    docker.io/${DOCKER_HUB_USERNAME}/${project.artifactId}:latest
-          docker push docker.io/${DOCKER_HUB_USERNAME}/${project.artifactId}:${{ steps.get_version.outputs.VERSION }}
+          mvn -Dspring-boot.build-image.imageName=docker.io/${DOCKER_HUB_USERNAME}/${project.artifactId}:${VERSION} spring-boot:build-image -DskipTests
+          docker push docker.io/${DOCKER_HUB_USERNAME}/${project.artifactId}:${VERSION}
+          docker tag docker.io/${DOCKER_HUB_USERNAME}/${project.artifactId}:${VERSION} docker.io/${DOCKER_HUB_USERNAME}/${project.artifactId}:latest
           docker push docker.io/${DOCKER_HUB_USERNAME}/${project.artifactId}:latest
 
       - name: Complete Release
