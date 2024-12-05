@@ -50,13 +50,23 @@ jobs:
       - name: Check if Docker push is needed
         id: check_push
         run: |
-          echo "LOG: $(git log -1 --pretty=%B)"
-          echo "REF: ${{ github.ref }}"
-          
-          if [[ "${{ github.ref }}" == "refs/heads/master" || $(git log -1 --pretty=%B) == *"PUSH"* ]]; then
+          if [[ "${{ github.ref }}" == "refs/heads/master" ]]; then
             echo "should_push=true" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            if [[ "${{ github.event.pull_request.title }}" == *"PUSH"* || "${{ github.event.pull_request.body }}" == *"PUSH"* ]]; then
+              echo "should_push=true" >> $GITHUB_OUTPUT
+            else
+              echo "should_push=false" >> $GITHUB_OUTPUT
+            fi
           else
             echo "should_push=false" >> $GITHUB_OUTPUT
+          fi
+          
+          echo "Event type: ${{ github.event_name }}"
+          echo "Ref: ${{ github.ref }}"
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            echo "PR title: ${{ github.event.pull_request.title }}"
+            echo "PR body: ${{ github.event.pull_request.body }}"
           fi
 
       - name: Login to Docker Hub
