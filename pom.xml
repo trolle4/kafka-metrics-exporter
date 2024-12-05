@@ -89,9 +89,45 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <image>
+                        <name>${project.artifactId}</name>
+                        <builder>paketobuildpacks/builder:base</builder>
+                    </image>
+                    <docker>
+                        <publishRegistry>
+                            <username>${env.DOCKER_HUB_USERNAME}</username>
+                            <password>${env.DOCKER_HUB_TOKEN}</password>
+                        </publishRegistry>
+                    </docker>
+                </configuration>
+            </plugin>
+            <!-- Maven Release Plugin -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-release-plugin</artifactId>
+                <version>3.1.1</version>
+                <configuration>
+                    <tagNameFormat>v@{project.version}</tagNameFormat>
+                    <autoVersionSubmodules>true</autoVersionSubmodules>
+                    <releaseProfiles>release</releaseProfiles>
+                </configuration>
             </plugin>
 
+            <!-- SCM Plugin -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-scm-plugin</artifactId>
+                <version>2.1.0</version>
+            </plugin>
         </plugins>
     </build>
+
+    <scm>
+        <connection>scm:git:https://github.com/trolle4/kafka-metrics-exporter.git</connection>
+        <developerConnection>scm:git:https://github.com/trolle4/kafka-metrics-exporter.git</developerConnection>
+        <url>https://github.com/trolle4/kafka-metrics-exporter</url>
+        <tag>HEAD</tag>
+    </scm>
 
 </project>
