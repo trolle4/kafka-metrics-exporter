@@ -89,16 +89,6 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
-                <configuration>
-                    <image>
-                        <name>docker.io/${env.DOCKER_HUB_USERNAME}/${project.artifactId}</name>
-                        <builder>paketobuildpacks/builder:base</builder>
-                        <env>
-                            <BP_JVM_VERSION>21</BP_JVM_VERSION>
-                        </env>
-                        <cleanCache>true</cleanCache>
-                    </image>
-                </configuration>
             </plugin>
             <!-- Maven Release Plugin -->
             <plugin>
