@@ -1,0 +1,26 @@
+spring:
+  application:
+    name: kafka-exporter
+
+collector:
+  conf:
+    minTimeBetweenUpdatesMillis: 5000
+    topicBlackListRegex:
+    topicWhiteListRegex: .+
+
+management:
+  server:
+    port: 8081
+  endpoints:
+    web:
+      exposure:
+        include: prometheus,health,info,metric
+    health:
+      show-details: always
+
+  endpoint:
+    prometheus:
+      access: unrestricted
+
+server:
+  port: 8080
