@@ -68,8 +68,12 @@ jobs:
           mvn -Dspring-boot.build-image.imageName="${IMAGE_TAG}" spring-boot:build-image -DskipTests
           
           docker push "${IMAGE_TAG}"
-          docker tag "${IMAGE_TAG}" "docker.io/${DOCKER_HUB_USERNAME}/kafka-metrics-exporter:latest"
-          docker push "docker.io/${DOCKER_HUB_USERNAME}/kafka-metrics-exporter:latest"
+          
+          # Only tag as latest if we're on master branch
+          if [ "${{ github.ref }}" = "refs/heads/master" ]; then
+            docker tag "${IMAGE_TAG}" "docker.io/${DOCKER_HUB_USERNAME}/kafka-metrics-exporter:latest"
+            docker push "docker.io/${DOCKER_HUB_USERNAME}/kafka-metrics-exporter:latest"
+          fi
 
       - name: Complete Release
         if: github.ref == 'refs/heads/master'
