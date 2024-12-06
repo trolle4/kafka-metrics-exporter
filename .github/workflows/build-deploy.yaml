@@ -87,7 +87,7 @@ jobs:
             # For master branch, prepare release but don't perform yet
             mvn --batch-mode release:prepare \
               -DpreparationGoals="clean verify" \
-              -DpushChanges=true
+              -DpushChanges=true \
               -DlocalCheckout=true
           
             # Get the release version (the tagged version, not the new snapshot)
