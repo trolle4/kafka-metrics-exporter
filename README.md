@@ -46,23 +46,56 @@ sasl.mechanism of OAUTHBEARER, I decided to create my own exporter.
 The metrics are exposed in the standard Prometheus format. Here's an example of what the metrics look like:
 
 ```
-# HELP kafka_topic_partitions Number of partitions for the topic
-# TYPE kafka_topic_partitions gauge
-kafka_topic_partitions{topic="my-topic"} 6.0
+# HELP kafka_consumergroup_current_offset  
+# TYPE kafka_consumergroup_current_offset gauge
+kafka_consumergroup_current_offset{consumergroup="CG1",partition="0",topic="topic1"} 40429.0
+kafka_consumergroup_current_offset{consumergroup="CG1",partition="0",topic="topic2"} 18474.0
 
-# HELP kafka_topic_partition_current_offset Current offset of the partition
-# TYPE kafka_topic_partition_current_offset gauge
-kafka_topic_partition_current_offset{topic="my-topic",partition="0"} 1000.0
-kafka_topic_partition_current_offset{topic="my-topic",partition="1"} 950.0
-
-# HELP kafka_consumergroup_lag Lag for the consumer group
+# HELP kafka_consumergroup_lag  
 # TYPE kafka_consumergroup_lag gauge
-kafka_consumergroup_lag{consumergroup="my-consumer-group",topic="my-topic",partition="0"} 100.0
-kafka_consumergroup_lag{consumergroup="my-consumer-group",topic="my-topic",partition="1"} 50.0
+kafka_consumergroup_lag{consumergroup="CG1",partition="0",topic="topic1"} 0.0
+kafka_consumergroup_lag{consumergroup="CG1",partition="0",topic="topic2"} 0.0
 
-# HELP kafka_topic_partition_in_sync_replica Number of in-sync replicas for the partition
+# HELP kafka_topic_partition_current_offset  
+# TYPE kafka_topic_partition_current_offset gauge
+kafka_topic_partition_current_offset{partition="0",topic="topic1"} 13481.0
+kafka_topic_partition_current_offset{partition="0",topic="topic2"} 6141.0
+
+# HELP kafka_topic_partition_in_sync_replica  
 # TYPE kafka_topic_partition_in_sync_replica gauge
-kafka_topic_partition_in_sync_replica{topic="my-topic",partition="0"} 3.0
+kafka_topic_partition_in_sync_replica{partition="0",topic="topic1"} 3.0
+kafka_topic_partition_in_sync_replica{partition="0",topic="topic2"} 3.0
+
+# HELP kafka_topic_partition_leader  
+# TYPE kafka_topic_partition_leader gauge
+kafka_topic_partition_leader{partition="0",topic="topic1"} 3.0
+kafka_topic_partition_leader{partition="0",topic="topic2"} 2.0
+
+# HELP kafka_topic_partition_leader_is_preferred  
+# TYPE kafka_topic_partition_leader_is_preferred gauge
+kafka_topic_partition_leader_is_preferred{partition="0",topic="topic1"} 1.0
+kafka_topic_partition_leader_is_preferred{partition="0",topic="topic2"} 1.0
+
+# HELP kafka_topic_partition_oldest_offset  
+# TYPE kafka_topic_partition_oldest_offset gauge
+kafka_topic_partition_oldest_offset{partition="0",topic="topic1"} 13481.0
+kafka_topic_partition_oldest_offset{partition="0",topic="topic2"} 6141.0
+
+# HELP kafka_topic_partition_replicas  
+# TYPE kafka_topic_partition_replicas gauge
+kafka_topic_partition_replicas{partition="0",topic="topic1"} 3.0
+kafka_topic_partition_replicas{partition="0",topic="topic2"} 3.0
+
+# HELP kafka_topic_partition_under_replicated_partition  
+# TYPE kafka_topic_partition_under_replicated_partition gauge
+kafka_topic_partition_under_replicated_partition{partition="0",topic="topic1"} 0.0
+kafka_topic_partition_under_replicated_partition{partition="0",topic="topic2"} 0.0
+
+# HELP kafka_topic_partitions  
+# TYPE kafka_topic_partitions gauge
+kafka_topic_partitions{topic="topic1"} 1.0
+kafka_topic_partitions{topic="topic2"} 1.0
+
 ```
 
 ## Building
@@ -85,11 +118,19 @@ The following environment variables can be used to configure the application whe
 
 ```bash
 SPRING_KAFKA_BOOTSTRAP_SERVERS      # Kafka bootstrap servers (required)
+SPRING_KAFKA_PROPERTIES_????        # Kafka admin client properties (optional)
 COLLECTOR_CONF_TOPICWHITELISTREGEX # Topic whitelist regex pattern (optional, default: ".*")
 COLLECTOR_CONF_TOPICBLACKLISTREGEX # Topic blacklist regex pattern (optional, default: "^$")
-COLLECTOR_CONF_MINTIMEBETWEENUPDATESMILLIS # Metrics update interval (optional, default: 60000)
-SERVER_PORT                        # Application port (optional, default: 8080)
+COLLECTOR_CONF_MINTIMEBETWEENUPDATESMILLIS # Metrics update interval (optional, default: 5000)
 ```
+
+An example of the admin client properties could be:
+```env
+SPRING_KAFKA_PROPERTIES_SECURITY_PROTOCOL=SASL_SSL
+SPRING_KAFKA_PROPERTIES_SASL_MECHANISM=OAUTHBEARER
+SPRING_KAFKA_PROPERTIES_SASL_LOGIN_CALLBACK_HANDLER_CLASS=io.strimzi.kafka.oauth.client.JaasClientOauthLoginCallbackHandler
+SPRING_KAFKA_PROPERTIES_SASL_JAAS_CONFIG=org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModule required username="user" password="password";
+``` 
 
 ### Docker Run Command
 
@@ -108,7 +149,6 @@ docker run -d \
   -e SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka1:9092,kafka2:9092 \
   -e COLLECTOR_CONF_TOPICWHITELISTREGEX="^(prod|stage).*" \
   -e COLLECTOR_CONF_MINTIMEBETWEENUPDATESMILLIS=30000 \
-  -e SERVER_PORT=8080 \
   trolle4/kafka-metrics-exporter
 ```
 
@@ -128,19 +168,6 @@ services:
     restart: unless-stopped
 ```
 
-## Running
-
-### Using Docker
-
-The image is available on Docker Hub:
-```bash
-docker pull trolle4/kafka-metrics-exporter
-```
-
-Run the container:
-```bash
-docker run -p 8080:8080 trolle4/kafka-metrics-exporter
-```
 
 ### Using Java
 ```bash
@@ -149,8 +176,11 @@ java -jar target/kafka-metrics-exporter.jar
 
 ## Accessing Metrics
 
-- Actuator metrics: `http://localhost:8080/actuator/kafkametrics`
-- Prometheus metrics: `http://localhost:8080/metrics`
+The metrics are available from two places:
+
+- Kafka metrics: `http://localhost:8081/actuator/kafkametrics`
+- Kafka metrics: `http://localhost:8080/metrics`
+- Regular Spring Boot Actuator metrics: `http://localhost:8081/actuator/prometheus`
 
 ## Contributing
 
