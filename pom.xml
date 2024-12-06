@@ -121,4 +121,12 @@
         <tag>HEAD</tag>
     </scm>
 
+    <distributionManagement>
+        <repository>
+            <id>github</id>
+            <name>GitHub Packages</name>
+            <url>https://maven.pkg.github.com/trolle4/kafka-metrics-exporter</url>
+        </repository>
+    </distributionManagement>
+
 </project>

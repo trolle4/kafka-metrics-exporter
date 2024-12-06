@@ -122,6 +122,8 @@ jobs:
 
       - name: Complete Release
         if: github.ref == 'refs/heads/master'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           # Now perform the release to update to next snapshot version
           mvn --batch-mode release:perform \
