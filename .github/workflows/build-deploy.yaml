@@ -6,13 +6,9 @@ on:
   pull_request:
     branches: [ master ]
 
-env:
-  DOCKER_HUB_USERNAME: ${{ secrets.DOCKER_HUB_USERNAME }}
-  DOCKER_HUB_TOKEN: ${{ secrets.DOCKER_HUB_TOKEN }}
-  IMAGE_NAME: ${{ secrets.DOCKER_HUB_USERNAME }}/kafka-metrics-exporter
-
 jobs:
   build-and-push:
+    if: "!contains(github.event.head_commit.message, '[ci skip]') && !contains(github.event.head_commit.message, '[skip ci]')"
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -91,7 +87,7 @@ jobs:
             # For master branch, prepare release but don't perform yet
             mvn --batch-mode release:prepare \
               -DpreparationGoals="clean verify" \
-              -DpushChanges=false \
+              -DpushChanges=true
               -DlocalCheckout=true
           
             # Get the release version (the tagged version, not the new snapshot)
@@ -133,5 +129,4 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           # Now perform the release to update to next snapshot version
-          mvn --batch-mode release:perform  \
-            -DlocalCheckout=true
+          mvn --batch-mode release:perform -DlocalCheckout=true -DpushChanges=true
