@@ -13,12 +13,14 @@ import org.apache.kafka.common.TopicPartitionInfo;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentMatcher;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.*;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -78,6 +80,19 @@ class KafkaMetricsCollectorTest {
         return new TopicDescription(topic, false, Collections.singletonList(partitionInfo));
     }
 
+    class AtomicLongMatcher implements ArgumentMatcher<AtomicLong> {
+        private final long expectedValue;
+
+        AtomicLongMatcher(long expectedValue) {
+            this.expectedValue = expectedValue;
+        }
+
+        @Override
+        public boolean matches(AtomicLong atomic) {
+            return atomic != null && atomic.get() == expectedValue;
+        }
+    }
+
     @Test
     void testCollectTopicMetrics() throws Exception {
         // Prepare test data
@@ -100,14 +115,14 @@ class KafkaMetricsCollectorTest {
         var result = collector.collectTopicMetrics(topicDescriptions);
 
         // Verify
-        verify(meterRegistry).gauge(eq(KafkaMetricsCollector.KAFKA_TOPIC_PARTITIONS), eq(tagTopic), eq(1));
-        verify(meterRegistry).gauge(eq(KafkaMetricsCollector.KAFKA_TOPIC_PARTITION_CURRENT_OFFSET), eq(tagTopicPartition), eq(100L));
-        verify(meterRegistry).gauge(eq(KafkaMetricsCollector.KAFKA_TOPIC_PARTITION_OLDEST_OFFSET), eq(tagTopicPartition), eq(25L));
-        verify(meterRegistry).gauge(eq(KafkaMetricsCollector.KAFKA_TOPIC_PARTITION_IN_SYNC_REPLICA), eq(tagTopicPartition), eq(1));
-        verify(meterRegistry).gauge(eq(KafkaMetricsCollector.KAFKA_TOPIC_PARTITION_LEADER), eq(tagTopicPartition), eq(1));
-        verify(meterRegistry).gauge(eq(KafkaMetricsCollector.KAFKA_TOPIC_PARTITION_LEADER_IS_PREFERRED), eq(tagTopicPartition), eq(1));
-        verify(meterRegistry).gauge(eq(KafkaMetricsCollector.KAFKA_TOPIC_PARTITION_REPLICAS), eq(tagTopicPartition), eq(1));
-        verify(meterRegistry).gauge(eq(KafkaMetricsCollector.KAFKA_TOPIC_PARTITION_UNDER_REPLICATED_PARTITION), eq(tagTopicPartition), eq(0));
+        verify(meterRegistry).gauge(eq(KafkaMetricsCollector.KAFKA_TOPIC_PARTITIONS), eq(tagTopic), argThat(new AtomicLongMatcher(1)));
+        verify(meterRegistry).gauge(eq(KafkaMetricsCollector.KAFKA_TOPIC_PARTITION_CURRENT_OFFSET), eq(tagTopicPartition), argThat(new AtomicLongMatcher(100L)));
+        verify(meterRegistry).gauge(eq(KafkaMetricsCollector.KAFKA_TOPIC_PARTITION_OLDEST_OFFSET), eq(tagTopicPartition), argThat(new AtomicLongMatcher(25L)));
+        verify(meterRegistry).gauge(eq(KafkaMetricsCollector.KAFKA_TOPIC_PARTITION_IN_SYNC_REPLICA), eq(tagTopicPartition), argThat(new AtomicLongMatcher(1)));
+        verify(meterRegistry).gauge(eq(KafkaMetricsCollector.KAFKA_TOPIC_PARTITION_LEADER), eq(tagTopicPartition), argThat(new AtomicLongMatcher(1)));
+        verify(meterRegistry).gauge(eq(KafkaMetricsCollector.KAFKA_TOPIC_PARTITION_LEADER_IS_PREFERRED), eq(tagTopicPartition), argThat(new AtomicLongMatcher(1)));
+        verify(meterRegistry).gauge(eq(KafkaMetricsCollector.KAFKA_TOPIC_PARTITION_REPLICAS), eq(tagTopicPartition), argThat(new AtomicLongMatcher(1)));
+        verify(meterRegistry).gauge(eq(KafkaMetricsCollector.KAFKA_TOPIC_PARTITION_UNDER_REPLICATED_PARTITION), eq(tagTopicPartition), argThat(new AtomicLongMatcher(0)));
 
     }
 
@@ -140,8 +155,8 @@ class KafkaMetricsCollectorTest {
                 KafkaMetricsCollector.TAG_PARTITION, "0"
         );
 
-        verify(meterRegistry).gauge(eq(KafkaMetricsCollector.KAFKA_CONSUMERGROUP_CURRENT_OFFSET), eq(expectedTags), eq(33L));
-        verify(meterRegistry).gauge(eq(KafkaMetricsCollector.KAFKA_CONSUMERGROUP_LAG), eq(expectedTags), eq(17L));
+        verify(meterRegistry).gauge(eq(KafkaMetricsCollector.KAFKA_CONSUMERGROUP_CURRENT_OFFSET), eq(expectedTags), argThat(new AtomicLongMatcher(33L)));
+        verify(meterRegistry).gauge(eq(KafkaMetricsCollector.KAFKA_CONSUMERGROUP_LAG), eq(expectedTags), argThat(new AtomicLongMatcher(17L)));
 
     }
 }

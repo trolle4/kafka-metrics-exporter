@@ -1,5 +1,6 @@
 package com.trolle4.kafka.exporter;
 
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,8 +15,10 @@ import org.springframework.test.context.ActiveProfiles;
 @Slf4j
 class KafkaExporterApplicationTests {
 
-	//@Test
+	@SneakyThrows
+    //@Test
 	void contextLoads() {
+		Thread.sleep(1000000000);
 		log.info("Test case executed successfully");
 	}
 

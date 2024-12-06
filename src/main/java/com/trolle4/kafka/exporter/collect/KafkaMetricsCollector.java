@@ -1,5 +1,9 @@
 package com.trolle4.kafka.exporter.collect;
 
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.RemovalNotification;
+import io.micrometer.core.instrument.Meter;
 import io.micrometer.core.instrument.Tags;
 import io.micrometer.prometheusmetrics.PrometheusMeterRegistry;
 import lombok.Data;
@@ -16,8 +20,13 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
+
+import static com.google.common.cache.RemovalCause.EXPIRED;
 
 @Component
 @RequiredArgsConstructor
@@ -43,6 +52,7 @@ public class KafkaMetricsCollector {
     public static final String TAG_PARTITION = "partition";
     public static final String TAG_CONSUMER_GROUP = "consumergroup";
 
+    private final Map<String, Cache<Tags, AtomicLong>> metrics = new HashMap<>();
 
     private final CollectorConf collectorConf;
     private final AdminClientService adminClientService;
@@ -77,6 +87,36 @@ public class KafkaMetricsCollector {
         collectConsumerGroupMetrics(latestOffsets);
     }
 
+
+    private Cache<Tags, AtomicLong> createMetricCache(String metricName) {
+        return CacheBuilder.newBuilder()
+                .expireAfterWrite(collectorConf.minTimeBetweenUpdatesMillis * 5L, TimeUnit.MILLISECONDS)
+                .removalListener((RemovalNotification<Tags, AtomicLong> notification) -> {
+                    if(notification.getCause() == EXPIRED) {
+                        // Unregister the metric when it expires
+                        var id = new Meter.Id(metricName, notification.getKey(), null, null, Meter.Type.GAUGE);
+                        log.info("Removing metric: {}", id);
+                        meterRegistry().remove(id);
+                    }
+                })
+                .build();
+    }
+
+    private void updateMetrics(String metricName, Tags tags, Number value) {
+        var valueCache = metrics.computeIfAbsent(metricName, k -> createMetricCache(metricName));
+        var existingValue = valueCache.getIfPresent(tags);
+
+        if (existingValue == null) {
+            //Register new gauge
+            existingValue = new AtomicLong(value.longValue());
+            meterRegistry().gauge(metricName, tags, existingValue);
+        }
+
+        //Touch it to prevent it from being removed
+        valueCache.put(tags, existingValue);
+        existingValue.set(value.longValue());
+    }
+
     @SneakyThrows
     Map<TopicPartition, ListOffsetsResult.ListOffsetsResultInfo> collectTopicMetrics(Map<String, TopicDescription> topicDescriptions) {
 
@@ -97,7 +137,7 @@ public class KafkaMetricsCollector {
             String topic = entry.getKey();
             TopicDescription desc = entry.getValue();
 
-            meterRegistry().gauge(KAFKA_TOPIC_PARTITIONS,
+            updateMetrics(KAFKA_TOPIC_PARTITIONS,
                     Tags.of(TAG_TOPIC, topic),
                     desc.partitions().size());
 
@@ -121,20 +161,20 @@ public class KafkaMetricsCollector {
 
 
     void updatePartitionMetrics(TopicPartitionInfo partition, Tags tags, ListOffsetsResult.ListOffsetsResultInfo earliest, ListOffsetsResult.ListOffsetsResultInfo latest) {
-        meterRegistry().gauge(KAFKA_TOPIC_PARTITION_CURRENT_OFFSET, tags,
+        updateMetrics(KAFKA_TOPIC_PARTITION_CURRENT_OFFSET, tags,
                 latest != null ? latest.offset() : -1);
-        meterRegistry().gauge(KAFKA_TOPIC_PARTITION_OLDEST_OFFSET, tags,
+        updateMetrics(KAFKA_TOPIC_PARTITION_OLDEST_OFFSET, tags,
                 earliest != null ? earliest.offset() : -1);
 
-        meterRegistry().gauge(KAFKA_TOPIC_PARTITION_IN_SYNC_REPLICA, tags,
+        updateMetrics(KAFKA_TOPIC_PARTITION_IN_SYNC_REPLICA, tags,
                 partition.isr().size());
-        meterRegistry().gauge(KAFKA_TOPIC_PARTITION_LEADER,
+        updateMetrics(KAFKA_TOPIC_PARTITION_LEADER,
                 tags, partition.leader() != null ? partition.leader().id() : -1);
-        meterRegistry().gauge(KAFKA_TOPIC_PARTITION_LEADER_IS_PREFERRED, tags,
+        updateMetrics(KAFKA_TOPIC_PARTITION_LEADER_IS_PREFERRED, tags,
                 partition.leader() != null && partition.leader().id() == partition.replicas().getFirst().id() ? 1 : 0);
-        meterRegistry().gauge(KAFKA_TOPIC_PARTITION_REPLICAS, tags,
+        updateMetrics(KAFKA_TOPIC_PARTITION_REPLICAS, tags,
                 partition.replicas().size());
-        meterRegistry().gauge(KAFKA_TOPIC_PARTITION_UNDER_REPLICATED_PARTITION, tags,
+        updateMetrics(KAFKA_TOPIC_PARTITION_UNDER_REPLICATED_PARTITION, tags,
                 partition.isr().size() < partition.replicas().size() ? 1 : 0);
     }
 
@@ -155,11 +195,11 @@ public class KafkaMetricsCollector {
                         TAG_PARTITION, String.valueOf(tp.partition())
                 );
                 long currentOffset = offset.offset();
-                meterRegistry().gauge(KAFKA_CONSUMERGROUP_CURRENT_OFFSET, tags, currentOffset);
+                updateMetrics(KAFKA_CONSUMERGROUP_CURRENT_OFFSET, tags, currentOffset);
 
                 var latestOffset = latestOffsets.get(tp).offset();
                 long lag = Math.max(0, latestOffset - currentOffset);
-                meterRegistry().gauge(KAFKA_CONSUMERGROUP_LAG, tags, lag);
+                updateMetrics(KAFKA_CONSUMERGROUP_LAG, tags, lag);
             });
         });
     }
