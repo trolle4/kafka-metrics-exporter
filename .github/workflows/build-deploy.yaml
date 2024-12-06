@@ -1,0 +1,128 @@
+name: Spring Boot CI/CD
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+env:
+  DOCKER_HUB_USERNAME: ${{ secrets.DOCKER_HUB_USERNAME }}
+  DOCKER_HUB_TOKEN: ${{ secrets.DOCKER_HUB_TOKEN }}
+  IMAGE_NAME: ${{ secrets.DOCKER_HUB_USERNAME }}/kafka-metrics-exporter
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v3
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Configure Git
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+
+      - name: Verify Build
+        run: mvn package
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'table'
+          exit-code: '1'
+          ignore-unfixed: true
+          severity: 'CRITICAL,HIGH'
+          timeout: '10m'
+          trivyignores: '.trivyignore'
+
+      - name: Check if Docker push is needed
+        id: check_push
+        run: |
+          if [[ "${{ github.ref }}" == "refs/heads/master" ]]; then
+            echo "should_push=true" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.event_name }}" == "pull_request" ]] && false; then
+            if [[ "${{ github.event.pull_request.title }}" == *"PUSH"* || "${{ github.event.pull_request.body }}" == *"PUSH"* ]]; then
+              echo "should_push=true" >> $GITHUB_OUTPUT
+            else
+              echo "should_push=false" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "should_push=false" >> $GITHUB_OUTPUT
+          fi
+          
+          echo "Event type: ${{ github.event_name }}"
+          echo "Ref: ${{ github.ref }}"
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            echo "PR title: ${{ github.event.pull_request.title }}"
+            echo "PR body: ${{ github.event.pull_request.body }}"
+          fi
+
+      - name: Login to Docker Hub
+        if: steps.check_push.outputs.should_push == 'true'
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_TOKEN }}
+
+      - name: Get Version
+        id: get_version
+        if: steps.check_push.outputs.should_push == 'true'
+        run: |
+          if [ "${{ github.ref }}" = "refs/heads/master" ]; then
+            # For master branch, prepare release but don't perform yet
+            mvn --batch-mode release:prepare \
+              -DpreparationGoals="clean verify" \
+              -DpushChanges=false \
+              -DlocalCheckout=true
+          
+            # Get the release version (the tagged version, not the new snapshot)
+            VERSION=$(git describe --tags --abbrev=0)
+            echo "VERSION=${VERSION}" >> $GITHUB_OUTPUT
+          else
+            # For other branches, just use the SHA
+            VERSION="${GITHUB_SHA::7}"
+            echo "VERSION=${VERSION}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Build and Push Docker Image
+        if: steps.check_push.outputs.should_push == 'true'
+        env:
+          DOCKER_HUB_USERNAME: ${{ secrets.DOCKER_HUB_USERNAME }}
+          DOCKER_HUB_TOKEN: ${{ secrets.DOCKER_HUB_TOKEN }}
+          VERSION: ${{ steps.get_version.outputs.VERSION }}
+        run: |
+          IMAGE_TAG="docker.io/${DOCKER_HUB_USERNAME}/kafka-metrics-exporter:${VERSION}"
+          MAJOR_MINOR=$(echo ${VERSION} | cut -d'.' -f1,2)
+          
+          mvn -Dspring-boot.build-image.imageName="${IMAGE_TAG}" spring-boot:build-image -DskipTests
+          
+          docker push "${IMAGE_TAG}"
+          
+          # Only tag as latest if we're on master branch
+          if [ "${{ github.ref }}" = "refs/heads/master" ]; then
+            docker tag "${IMAGE_TAG}" "docker.io/${DOCKER_HUB_USERNAME}/kafka-metrics-exporter:latest"
+            docker push "docker.io/${DOCKER_HUB_USERNAME}/kafka-metrics-exporter:latest"
+          
+            # Tag and push major.minor version
+            docker tag "${IMAGE_TAG}" "docker.io/${DOCKER_HUB_USERNAME}/kafka-metrics-exporter:${MAJOR_MINOR}"
+            docker push "docker.io/${DOCKER_HUB_USERNAME}/kafka-metrics-exporter:${MAJOR_MINOR}"
+          fi
+
+      - name: Complete Release
+        if: github.ref == 'refs/heads/master'
+        run: |
+          # Now perform the release to update to next snapshot version
+          mvn --batch-mode release:perform \
+            -DlocalCheckout=true
