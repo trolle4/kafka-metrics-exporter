@@ -52,12 +52,12 @@ jobs:
         run: |
           if [[ "${{ github.ref }}" == "refs/heads/master" ]]; then
             echo "should_push=true" >> $GITHUB_OUTPUT
-#          elif [[ "${{ github.event_name }}" == "pull_request" ]]; then
-#            if [[ "${{ github.event.pull_request.title }}" == *"PUSH"* || "${{ github.event.pull_request.body }}" == *"PUSH"* ]]; then
-#              echo "should_push=true" >> $GITHUB_OUTPUT
-#            else
-#              echo "should_push=false" >> $GITHUB_OUTPUT
-#            fi
+          elif [[ "${{ github.event_name }}" == "pull_request" ]] && false; then
+            if [[ "${{ github.event.pull_request.title }}" == *"PUSH"* || "${{ github.event.pull_request.body }}" == *"PUSH"* ]]; then
+              echo "should_push=true" >> $GITHUB_OUTPUT
+            else
+              echo "should_push=false" >> $GITHUB_OUTPUT
+            fi
           else
             echo "should_push=false" >> $GITHUB_OUTPUT
           fi
