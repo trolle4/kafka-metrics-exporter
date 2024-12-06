@@ -111,13 +111,21 @@
                 <artifactId>maven-scm-plugin</artifactId>
                 <version>2.1.0</version>
             </plugin>
+
+            <plugin>
+                <artifactId>maven-release-plugin</artifactId>
+                <version>3.1.1</version>
+                <configuration>
+                    <scmCommentPrefix>[ci skip]</scmCommentPrefix>
+                </configuration>
+            </plugin>
         </plugins>
     </build>
 
     <scm>
-        <connection>scm:git:https://github.com/trolle4/kafka-metrics-exporter.git</connection>
-        <developerConnection>scm:git:https://github.com/trolle4/kafka-metrics-exporter.git</developerConnection>
-        <url>https://github.com/trolle4/kafka-metrics-exporter</url>
+        <connection>scm:git:git@github.com:trolle4/kafka-metrics-exporter.git</connection>
+        <developerConnection>scm:git:git@github.com:trolle4/kafka-metrics-exporter.git</developerConnection>
+        <url>git@github.com:trolle4/kafka-metrics-exporter.git</url>
         <tag>HEAD</tag>
     </scm>
 

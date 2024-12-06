@@ -125,8 +125,26 @@ jobs:
       - name: Complete Release
         if: github.ref == 'refs/heads/master'
         env:
+          GIT_SSH_PRIVATE_KEY: ${{ secrets.GIT_SSH_PRIVATE_KEY }}
           GITHUB_TOKEN: ${{ github.token }}
         run: |
+          # Start SSH agent
+          eval $(ssh-agent -s)
+
+          # Create SSH directory if it doesn't exist
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+
+          # Add the private key
+          echo "$GIT_SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add -
+
+          # Configure Git to use SSH
+          ssh-keyscan github.com >> ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+
+          git config --global user.email "github-actions@github.com"
+          git config --global user.name "GitHub Actions"
+
           # Now perform the release to update to next snapshot version
-          mvn --batch-mode  release:perform -s $GITHUB_WORKSPACE/settings.xml \
+          mvn --batch-mode release:perform -s $GITHUB_WORKSPACE/settings.xml \
             -DlocalCheckout=true
