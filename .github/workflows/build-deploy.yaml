@@ -52,12 +52,12 @@ jobs:
         run: |
           if [[ "${{ github.ref }}" == "refs/heads/master" ]]; then
             echo "should_push=true" >> $GITHUB_OUTPUT
-          elif [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            if [[ "${{ github.event.pull_request.title }}" == *"PUSH"* || "${{ github.event.pull_request.body }}" == *"PUSH"* ]]; then
-              echo "should_push=true" >> $GITHUB_OUTPUT
-            else
-              echo "should_push=false" >> $GITHUB_OUTPUT
-            fi
+#          elif [[ "${{ github.event_name }}" == "pull_request" ]]; then
+#            if [[ "${{ github.event.pull_request.title }}" == *"PUSH"* || "${{ github.event.pull_request.body }}" == *"PUSH"* ]]; then
+#              echo "should_push=true" >> $GITHUB_OUTPUT
+#            else
+#              echo "should_push=false" >> $GITHUB_OUTPUT
+#            fi
           else
             echo "should_push=false" >> $GITHUB_OUTPUT
           fi
@@ -104,6 +104,7 @@ jobs:
           VERSION: ${{ steps.get_version.outputs.VERSION }}
         run: |
           IMAGE_TAG="docker.io/${DOCKER_HUB_USERNAME}/kafka-metrics-exporter:${VERSION}"
+          MAJOR_MINOR=$(echo ${VERSION} | cut -d'.' -f1,2)
           
           mvn -Dspring-boot.build-image.imageName="${IMAGE_TAG}" spring-boot:build-image -DskipTests
           
@@ -113,6 +114,10 @@ jobs:
           if [ "${{ github.ref }}" = "refs/heads/master" ]; then
             docker tag "${IMAGE_TAG}" "docker.io/${DOCKER_HUB_USERNAME}/kafka-metrics-exporter:latest"
             docker push "docker.io/${DOCKER_HUB_USERNAME}/kafka-metrics-exporter:latest"
+          
+            # Tag and push major.minor version
+            docker tag "${IMAGE_TAG}" "docker.io/${DOCKER_HUB_USERNAME}/kafka-metrics-exporter:${MAJOR_MINOR}"
+            docker push "docker.io/${DOCKER_HUB_USERNAME}/kafka-metrics-exporter:${MAJOR_MINOR}"
           fi
 
       - name: Complete Release
