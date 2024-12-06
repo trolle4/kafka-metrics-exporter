@@ -8,8 +8,8 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @EnableScheduling
 public class KafkaExporterApplication {
 
-	public static void main(String[] args) {
-		SpringApplication.run(KafkaExporterApplication.class, args);
-	}
+    public static void main(String[] args) {
+        SpringApplication.run(KafkaExporterApplication.class, args);
+    }
 
 }
