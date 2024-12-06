@@ -128,4 +128,5 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
           # Now perform the release to update to next snapshot version
-          mvn --batch-mode  release:perform -s $GITHUB_WORKSPACE/settings.xml
+          mvn --batch-mode  release:perform -s $GITHUB_WORKSPACE/settings.xml \
+            -DlocalCheckout=true
