@@ -92,7 +92,7 @@ public class KafkaMetricsCollector {
         return CacheBuilder.newBuilder()
                 .expireAfterWrite(collectorConf.minTimeBetweenUpdatesMillis * 5L, TimeUnit.MILLISECONDS)
                 .removalListener((RemovalNotification<Tags, AtomicLong> notification) -> {
-                    if(notification.getCause() == EXPIRED) {
+                    if (notification.getCause() == EXPIRED) {
                         // Unregister the metric when it expires
                         var id = new Meter.Id(metricName, notification.getKey(), null, null, Meter.Type.GAUGE);
                         log.info("Removing metric: {}", id);
