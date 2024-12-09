@@ -115,7 +115,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "sum(rate(kafka_topic_partition_current_offset{job=~\"$job\",topic=~\"$topic\"}[1m])) by (topic)",
+          "expr": "sum(rate(kafka_topic_partition_current_offset{job=~'$job',topic=~'$topic'}[1m])) by (topic)",
           "format": "time_series",
           "intervalFactor": 1,
           "legendFormat": "{{topic}}",
@@ -218,7 +218,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "sum(delta(kafka_topic_partition_current_offset{job=~\"$job\",topic=~\"$topic\"}[5m])/5) by (topic)",
+          "expr": "sum(delta(kafka_topic_partition_current_offset{job=~'$job',topic=~'$topic'}[5m])/5) by (topic)",
           "format": "time_series",
           "intervalFactor": 1,
           "legendFormat": "{{topic}}",
@@ -321,7 +321,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "sum(delta(kafka_consumergroup_current_offset{job=~\"$job\",topic=~\"$topic\", consumergroup=~\"$consumer_group\"}[60s])/60) by (consumergroup, topic)",
+          "expr": "sum(delta(kafka_consumergroup_current_offset{job=~'$job',topic=~'$topic', consumergroup=~'$consumer_group'}[60s])/60) by (consumergroup, topic)",
           "format": "time_series",
           "intervalFactor": 1,
           "legendFormat": "{{consumergroup}} (topic: {{topic}})",
@@ -424,7 +424,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "sum(delta(kafka_consumergroup_current_offset{job=~\"$job\",topic=~\"$topic\", consumergroup=~\"$consumer_group\"}[5m])/5) by (consumergroup, topic)",
+          "expr": "sum(delta(kafka_consumergroup_current_offset{job=~'$job',topic=~'$topic', consumergroup=~'$consumer_group'}[5m])/5) by (consumergroup, topic)",
           "format": "time_series",
           "intervalFactor": 1,
           "legendFormat": "{{consumergroup}} (topic: {{topic}})",
@@ -528,7 +528,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "sum(kafka_consumergroup_lag{job=~\"$job\",topic=~\"$topic\", consumergroup=~\"$consumer_group\"}) by (consumergroup, topic) ",
+          "expr": "sum(kafka_consumergroup_lag{job=~'$job',topic=~'$topic', consumergroup=~'$consumer_group'}) by (consumergroup, topic) ",
           "format": "time_series",
           "instant": false,
           "interval": "",
@@ -633,7 +633,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "sum(kafka_consumergroup_lag{job=~\"$job\",topic=~\"$topic\", consumergroup=~\"$consumer_group\"}) by (consumergroup, partition, topic) ",
+          "expr": "sum(kafka_consumergroup_lag{job=~'$job',topic=~'$topic', consumergroup=~'$consumer_group'}) by (consumergroup, partition, topic) ",
           "format": "time_series",
           "instant": false,
           "interval": "",
@@ -722,7 +722,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "sum by(topic) (kafka_topic_partitions{job=~\"$job\",topic=~\"$topic\"})",
+          "expr": "sum by(topic) (kafka_topic_partitions{job=~'$job',topic=~'$topic'})",
           "format": "time_series",
           "intervalFactor": 1,
           "legendFormat": "{{topic}}",
@@ -765,7 +765,7 @@
           "type": "prometheus",
           "uid": "${DS_PROMETHEUS}"
         },
-        "definition": "label_values(kafka_topic_partition_current_offset{topic!=\"__consumer_offsets\", topic!=\"--kafka\"},topic)",
+        "definition": "label_values(kafka_topic_partition_current_offset{topic!='__consumer_offsets', topic!='--kafka'},topic)",
         "hide": 0,
         "includeAll": true,
         "label": "Topic",
@@ -773,7 +773,7 @@
         "name": "topic",
         "options": [],
         "query": {
-          "query": "label_values(kafka_topic_partition_current_offset{topic!=\"__consumer_offsets\", topic!=\"--kafka\"},topic)"
+          "query": "label_values(kafka_topic_partition_current_offset{topic!='__consumer_offsets', topic!='--kafka'},topic)"
         },
         "refresh": 1,
         "regex": "",
@@ -787,7 +787,7 @@
           "type": "prometheus",
           "uid": "${DS_PROMETHEUS}"
         },
-        "definition": "label_values(kafka_consumergroup_lag{topic!=\"__consumer_offsets\", topic!=\"--kafka\"},consumergroup)",
+        "definition": "label_values(kafka_consumergroup_lag{topic!='__consumer_offsets', topic!='--kafka'},consumergroup)",
         "hide": 0,
         "includeAll": true,
         "label": "Consumer Group",
@@ -795,7 +795,7 @@
         "name": "consumer_group",
         "options": [],
         "query": {
-          "query": "label_values(kafka_consumergroup_lag{topic!=\"__consumer_offsets\", topic!=\"--kafka\"},consumergroup)"
+          "query": "label_values(kafka_consumergroup_lag{topic!='__consumer_offsets', topic!='--kafka'},consumergroup)"
         },
         "refresh": 1,
         "regex": "",
